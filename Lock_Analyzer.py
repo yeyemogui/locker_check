@@ -106,20 +106,27 @@ class Lock_Analyzer:
                     continue;
                 lockState[lockId][pairedLockType] -= 1;
                 tmpLockResult[lockId][pairedLockType][-1][1] = timeStamp;
-                diff = self.getTime(timeStamp) - self.getTime(tmpLockResult[lockId][pairedLockType][-1][0]);
-                tmpLockResult[lockId][pairedLockType][-1][2] = diff.microseconds;
+                tmpLockResult[lockId][pairedLockType][-1][2] = (self.getTime(timeStamp) - self.getTime(tmpLockResult[lockId][pairedLockType][-1][0])).seconds;
                 lockResult[lockId][pairedLockType].append(tmpLockResult[lockId][pairedLockType][-1]);
                 tmpLockResult[lockId][pairedLockType].pop();
         
+        for lockId in lockState.keys():
+            for lockType in lockState[lockId].keys():
+                if lockState[lockId][lockType] != 0:
+                    lockResult[lockId][lockType] += tmpLockResult[lockId][lockType];
+
         f = open(threadId + self.theadLockPosix, 'w');
         for key in lockResult.keys():
             f.write("Lock Id: " + key + "\n");
             for lockType, records in lockResult[key].items():
                 f.write("Lock Type: " + lockType + "\n");
                 for record in records:
-                    f.write(record[0] + " " + record[1] + " " + str(record[2]) + "\n");
-                    if record[1] is None:
-                        print("there is possible deadlock for thread " + threadId + " with lock id " + key + " at " + record[0]);
+                    if record[1] is None: 
+                        print("there is possible deadlock for thread " + threadId + " with lock id " + key + " with type " + lockType + " at " + record[0]);
+                        f.write(record[0] + " " + " " + " " + " " + "\n");
+                    else:
+                        f.write(record[0] + " " + str(record[1]) + " " + str(record[2]) + "\n");
+
         f.close();
         log.close();
 
