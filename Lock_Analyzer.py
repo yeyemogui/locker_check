@@ -76,9 +76,20 @@ class Lock_Analyzer:
             return None, None, None;
         except Exception as ex:
             logger.warning(str(ex));
-            logger.warning("error happened when handling: " + line.strip('\n'));
+            logger.debug("error happened when handling: " + line.strip('\n'));
             return None, None, None
 
+    def initLockState(self, lockId, lockState):
+        lockState[lockId] = {
+                    'lock_shared': 0,
+                    'lock_upgrade': 0,
+                    'unlock_upgrade_and_lock': 0};
+    
+    def initLockResult(self, lockId, lockResult):
+        lockResult[lockId] = {
+                    'lock_shared':[],
+                    'lock_upgrade': [],
+                    'unlock_upgrade_and_lock':[] };
 
     def analyzeThreadFile(self, fileName, threadId):
         log = open(fileName, 'r');
@@ -90,20 +101,9 @@ class Lock_Analyzer:
             if lockId is None:
                 continue;
             if lockId not in lockState.keys():
-                lockState[lockId] = {
-                    'lock_shared': 0,
-                    'lock_upgrade': 0,
-                    'unlock_upgrade_and_lock': 0};
-
-                tmpLockResult[lockId] = {
-                    'lock_shared':[],
-                    'lock_upgrade': [],
-                    'unlock_upgrade_and_lock':[] };
-                
-                lockResult[lockId] = {
-                    'lock_shared':[],
-                    'lock_upgrade': [],
-                    'unlock_upgrade_and_lock':[] };
+                self.initLockState(lockId, lockState);
+                self.initLockResult(lockId, tmpLockResult);
+                self.initLockResult(lockId, lockResult);
             if lockType in lockState[lockId].keys():
                 if lockState[lockId][lockType] != 0:
                     logger.warning("Detected recursive lock for thread: " + threadId + " with lock id: " + lockId + " with lock type: " + lockType + " at " + timeStamp)
