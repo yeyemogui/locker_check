@@ -1,4 +1,4 @@
 # locker_check
 
 Usage:
-Lock_Analyzer.py logfileName
+Lock_Analyzer.py --help
