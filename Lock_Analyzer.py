@@ -9,9 +9,10 @@ import time
 global logger;
 
 class Lock_Analyzer:
-    def __init__(self, logPath, threadPos = 8, timeStampPos = 7):
+    def __init__(self, logPath, threshold = 10, threadPos = 8, timeStampPos = 7):
         logger.info("Will analyze log file (" + logPath + ").");
         self.logPath = logPath;
+        self.threshold = threshold;
         self.threadPos = threadPos;
         self.timeStampPos = timeStampPos;
         self.threadFilePosix = '_log.log';
@@ -31,7 +32,7 @@ class Lock_Analyzer:
             'unlock_upgrade_and_lock': ['unlock_upgrade_and_lock(): Start unlock_upgrade_and_lock with addr', 'unlock_upgrade_and_lock(): unlock_upgrade_and_lock with addr'],
             'unlock_and_lock_upgrade': ['unlock_and_lock_upgrade(): Start unlock_and_lock_upgrade with addr', 'unlock_and_lock_upgrade(): unlock_and_lock_upgrade with addr']
             };
-        self.analyzeSum = [];
+        self.analyzeSum = {};
     
     def closeThreadFiles(self, FilesMap):
         for key, value in FilesMap.items():
@@ -105,7 +106,7 @@ class Lock_Analyzer:
             if lockType in lockState[lockId].keys():
                 if lockState[lockId][lockType] != 0:
                     logger.warning("Detected recursive lock for thread: " + threadId + " with lock id: " + lockId + " with lock type: " + lockType + " at " + timeStamp)
-                    self.analyzeSum.append(['Recursive Locker', threadId, lockId, lockType, timeStamp]);
+                    self.addAnalyzeResult('Recursive Locker', [threadId, lockId, lockType, timeStamp]);
                 lockState[lockId][lockType] += 1;
                 record = [timeStamp, None, None];
                 tmpLockResult[lockId][lockType].append(record);
@@ -142,23 +143,33 @@ class Lock_Analyzer:
                 for record in records:
                     if record[1] is None: 
                         logger.error("there is possible deadlock for thread " + threadId + " with lock id " + key + " with type " + lockType + " at " + record[0]);
-                        self.analyzeSum.append(['No released locker', threadId, key, lockType, record[0]]);
+                        self.addAnalyzeResult('No released locker', [threadId, key, lockType, record[0]]);
                         f.write(record[0] + " " + " " + " " + " " + "\n");
                     else:
+                        if int(record[2]) >= int(self.threshold):
+                            self.addAnalyzeResult('long lock holder', [threadId, key, lockType, record[0], record[1], record[2]]);
                         f.write(record[0] + " " + str(record[1]) + " " + str(record[2]) + "\n");
         f.close();
+
+    def addAnalyzeResult(self, record_name, record):
+        if record_name not in self.analyzeSum.keys():
+            self.analyzeSum[record_name] = [];
+        self.analyzeSum[record_name].append(record);
 
     def calculateLockTime(self):
         threadFilesMap = {};
         self.splitLogWithThreadId(threadFilesMap);
         for threadId in threadFilesMap.keys():
             self.analyzeThreadFile(self.threadFilePath + r'/' + threadId+self.threadFilePosix, threadId);
-        logger.info("-------------Summary----------------")
-        for result in self.analyzeSum:
-            printInfo = "";
-            for item in result:
-                printInfo += item + " ";
-            logger.info(printInfo);
+        logger.info("--------------------Summary-----------------------")
+        for type in self.analyzeSum.keys():
+            logger.info(type + ":");
+            for record in self.analyzeSum[type]:
+                printInfo = "";
+                for item in record:
+                    printInfo += str(item) + " ";
+                logger.info(printInfo);
+            logger.info("=============================================");
 
     def getTime(self, timeStamp):
         return datetime.datetime.strptime(timeStamp.strip('Zz'), "%Y-%m-%dT%H:%M:%S.%f");
@@ -193,6 +204,7 @@ class ToolKit:
             Usage:\n \
                 Lock_Analyzer.py -f log_path";
         parser.add_option("-f", "--filePath", action = "store", dest = "logPath", help = "the path of log");
+        parser.add_option("-t", "--threshold", action = "store", dest = "threshold", help = "highlight the lockers which are hold longer than the threshold");
         return parser;
     
     @staticmethod
@@ -220,7 +232,7 @@ if __name__ == "__main__":
     ToolKit.checkOption(options);
     ToolKit.initLogger();
 
-    analyzer = Lock_Analyzer(options.logPath);
+    analyzer = Lock_Analyzer(options.logPath, options.threshold);
     analyzer.calculateLockTime();
 
      
