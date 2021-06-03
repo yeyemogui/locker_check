@@ -41,6 +41,7 @@ class Lock_Analyzer:
 
     def __del__(self):
         logger.info("will clean resources");
+        logger.info("logs can be found from directory ./logs");
 
     def getThreadFile(self, FilesMap, key, posix):
         if not os.path.isdir(self.threadFilePath):
@@ -219,11 +220,18 @@ class ToolKit:
         global logger;
         logger = logging.getLogger();
         logger.setLevel(logging.DEBUG);
-        logfile = r'./log_' + time_line + r'.txt';
+        logPath = r'./logs';
+        if not os.path.isdir(logPath):
+            os.mkdir(logPath);
+        logfile = logPath + r'/log_' + time_line + r'.txt';
         fileHandler = logging.FileHandler(logfile);
         fileHandler.setLevel(logging.DEBUG);
         fileHandler.setFormatter(logging.Formatter(LOG_FORMAT));
         logger.addHandler(fileHandler);
+        streamHandler = logging.StreamHandler();
+        streamHandler.setLevel(logging.DEBUG);
+        streamHandler.setFormatter(logging.Formatter(LOG_FORMAT));
+        logger.addHandler(streamHandler);
         return logger;
 
 if __name__ == "__main__":
